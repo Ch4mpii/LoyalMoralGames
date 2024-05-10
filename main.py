@@ -5,8 +5,6 @@ from datetime import datetime
 class NumerosLoteria:
     def __init__(self):
         self.fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.numeros_principales = None
-        self.estrellas = None
         self.datos = self.cargar_datos()
 
     def cargar_datos(self):
@@ -14,29 +12,28 @@ class NumerosLoteria:
             with open("numeros_loteria.json", "r") as archivo:
                 return json.load(archivo)
         except FileNotFoundError:
-            return {"duplicados": []}
+            return {}
+
+    def generar_numeros_unicos(self, cantidad, rango):
+        return sorted(secrets.SystemRandom().sample(range(1, rango + 1), cantidad))
 
     def generar_numeros(self):
-        self.numeros_principales = [secrets.randbelow(50) + 1 for _ in range(5)]
-        self.estrellas = [secrets.randbelow(12) + 1 for _ in range(2)]
-        self.numeros_principales = sorted(set(self.numeros_principales))
-        self.estrellas = sorted(set(self.estrellas))
-        while len(self.numeros_principales) < 5:
-            self.numeros_principales.append(secrets.randbelow(50) + 1)
-            self.numeros_principales = sorted(set(self.numeros_principales))
-        while len(self.estrellas) < 2:
-            self.estrellas.append(secrets.randbelow(12) + 1)
-            self.estrellas = sorted(set(self.estrellas))
+        self.numeros_principales = self.generar_numeros_unicos(5, 50)
+        self.estrellas = self.generar_numeros_unicos(2, 12)
 
     def verificar_y_guardar(self):
-        clave = {"numeros_principales": self.numeros_principales, "estrellas": self.estrellas}
-        for entry in self.datos.get("duplicados", []):
-            if entry["numeros_principales"] == self.numeros_principales and entry["estrellas"] == self.estrellas:
-                entry["Veces generado"] = str(int(entry["Veces generado"]) + 1)
-                break
+        clave = tuple(self.numeros_principales + self.estrellas)
+        clave_str = f"{clave}"
+
+        if clave_str in self.datos:
+            self.datos["duplicados"] = self.datos.get("duplicados", {})
+            self.datos["duplicados"][clave_str] = self.datos["duplicados"].get(clave_str, 0) + 1
         else:
-            self.datos[self.fecha_actual] = clave
-            self.datos["duplicados"].append({**clave, "Veces generado": "1"})
+            self.datos[clave_str] = {
+                "fecha": self.fecha_actual,
+                "numeros_principales": self.numeros_principales,
+                "estrellas": self.estrellas
+            }
 
         with open("numeros_loteria.json", "w") as archivo:
             json.dump(self.datos, archivo, indent=4)
